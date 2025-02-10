@@ -64,7 +64,7 @@ public final class MaxiCodeReader implements Reader {
     BitMatrix bits = extractPureBits(image.getBlackMatrix());
     DecoderResult decoderResult = decoder.decode(bits, hints);
     Result result = new Result(decoderResult.getText(), decoderResult.getRawBytes(), NO_POINTS, BarcodeFormat.MAXICODE);
-
+    result.putMetadata(ResultMetadataType.ERRORS_CORRECTED, decoderResult.getErrorsCorrected());
     String ecLevel = decoderResult.getECLevel();
     if (ecLevel != null) {
       result.putMetadata(ResultMetadataType.ERROR_CORRECTION_LEVEL, ecLevel);
@@ -82,9 +82,6 @@ public final class MaxiCodeReader implements Reader {
    * which contains only an unrotated, unskewed, image of a code, with some white border
    * around it. This is a specialized method that works exceptionally fast in this special
    * case.
-   *
-   * @see com.google.zxing.datamatrix.DataMatrixReader#extractPureBits(BitMatrix)
-   * @see com.google.zxing.qrcode.QRCodeReader#extractPureBits(BitMatrix)
    */
   private static BitMatrix extractPureBits(BitMatrix image) throws NotFoundException {
 
@@ -101,9 +98,13 @@ public final class MaxiCodeReader implements Reader {
     // Now just read off the bits
     BitMatrix bits = new BitMatrix(MATRIX_WIDTH, MATRIX_HEIGHT);
     for (int y = 0; y < MATRIX_HEIGHT; y++) {
-      int iy = top + (y * height + height / 2) / MATRIX_HEIGHT;
+      int iy = top + Math.min((y * height + height / 2) / MATRIX_HEIGHT, height - 1);
       for (int x = 0; x < MATRIX_WIDTH; x++) {
-        int ix = left + (x * width + width / 2 + (y & 0x01) *  width / 2) / MATRIX_WIDTH;
+        // srowen: I don't quite understand why the formula below is necessary, but it
+        // can walk off the image if left + width = the right boundary. So cap it.
+        int ix = left + Math.min(
+            (x * width + width / 2 + (y & 0x01) * width / 2) / MATRIX_WIDTH,
+            width - 1);
         if (image.get(ix, iy)) {
           bits.set(x, y);
         }

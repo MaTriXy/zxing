@@ -174,7 +174,8 @@ public abstract class ResultHandler {
   }
 
   final void addPhoneOnlyContact(String[] phoneNumbers,String[] phoneTypes) {
-    addContact(null, null, null, phoneNumbers, phoneTypes, null, null, null, null, null, null, null, null, null, null, null);
+    addContact(null, null, null, phoneNumbers, phoneTypes,
+        null, null, null, null, null, null, null, null, null, null, null);
   }
 
   final void addEmailOnlyContact(String[] emails, String[] emailTypes) {
@@ -504,7 +505,7 @@ public abstract class ResultHandler {
     try {
       text = URLEncoder.encode(text, "UTF-8");
     } catch (UnsupportedEncodingException e) {
-      // can't happen; UTF-8 is always supported. Continue, I guess, without encoding      
+      // can't happen; UTF-8 is always supported. Continue, I guess, without encoding
     }
     String url = customProductSearch;
     if (rawResult != null) {
@@ -520,6 +521,7 @@ public abstract class ResultHandler {
     return url.replace("%s", text);
   }
 
+  @SuppressWarnings("deprecation")
   static String formatPhone(String phoneData) {
     // Just collect the call to a deprecated method in one place
     return PhoneNumberUtils.formatNumber(phoneData);

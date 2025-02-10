@@ -57,10 +57,11 @@ public final class PDF417Writer implements Writer {
     PDF417 encoder = new PDF417();
     int margin = WHITE_SPACE;
     int errorCorrectionLevel = DEFAULT_ERROR_CORRECTION_LEVEL;
+    boolean autoECI = false;
 
     if (hints != null) {
       if (hints.containsKey(EncodeHintType.PDF417_COMPACT)) {
-        encoder.setCompact(Boolean.valueOf(hints.get(EncodeHintType.PDF417_COMPACT).toString()));
+        encoder.setCompact(Boolean.parseBoolean(hints.get(EncodeHintType.PDF417_COMPACT).toString()));
       }
       if (hints.containsKey(EncodeHintType.PDF417_COMPACTION)) {
         encoder.setCompaction(Compaction.valueOf(hints.get(EncodeHintType.PDF417_COMPACTION).toString()));
@@ -82,9 +83,11 @@ public final class PDF417Writer implements Writer {
         Charset encoding = Charset.forName(hints.get(EncodeHintType.CHARACTER_SET).toString());
         encoder.setEncoding(encoding);
       }
+      autoECI = hints.containsKey(EncodeHintType.PDF417_AUTO_ECI) &&
+          Boolean.parseBoolean(hints.get(EncodeHintType.PDF417_AUTO_ECI).toString());
     }
 
-    return bitMatrixFromEncoder(encoder, contents, errorCorrectionLevel, width, height, margin);
+    return bitMatrixFromEncoder(encoder, contents, errorCorrectionLevel, width, height, margin, autoECI);
   }
 
   @Override
@@ -103,8 +106,9 @@ public final class PDF417Writer implements Writer {
                                                 int errorCorrectionLevel,
                                                 int width,
                                                 int height,
-                                                int margin) throws WriterException {
-    encoder.generateBarcodeLogic(contents, errorCorrectionLevel);
+                                                int margin,
+                                                boolean autoECI) throws WriterException {
+    encoder.generateBarcodeLogic(contents, errorCorrectionLevel, autoECI);
 
     int aspectRatio = 4;
     byte[][] originalScale = encoder.getBarcodeMatrix().getScaledMatrix(1, aspectRatio);
@@ -116,13 +120,7 @@ public final class PDF417Writer implements Writer {
 
     int scaleX = width / originalScale[0].length;
     int scaleY = height / originalScale.length;
-
-    int scale;
-    if (scaleX < scaleY) {
-      scale = scaleX;
-    } else {
-      scale = scaleY;
-    }
+    int scale = Math.min(scaleX, scaleY);
 
     if (scale > 1) {
       byte[][] scaledMatrix =

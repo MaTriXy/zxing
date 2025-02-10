@@ -16,10 +16,10 @@
 
 package com.google.zxing.web;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.annotation.WebFilter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.annotation.WebFilter;
 
 /**
  * Handles redirects to the app landing page.
@@ -31,7 +31,7 @@ public final class WelcomeFilter extends AbstractFilter {
   public void doFilter(ServletRequest servletRequest,
                        ServletResponse servletResponse,
                        FilterChain filterChain) {
-    redirect(servletResponse, "/w/decode.jspx");
+    redirect(servletResponse, "https://" + servletRequest.getServerName() + "/w/decode.jspx");
   }
 
 }

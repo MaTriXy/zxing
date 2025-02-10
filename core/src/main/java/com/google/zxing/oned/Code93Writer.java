@@ -16,26 +16,18 @@
 package com.google.zxing.oned;
 
 import com.google.zxing.BarcodeFormat;
-import com.google.zxing.EncodeHintType;
-import com.google.zxing.WriterException;
-import com.google.zxing.common.BitMatrix;
 
-import java.util.Map;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * This object renders a CODE93 code as a BitMatrix
  */
 public class Code93Writer extends OneDimensionalCodeWriter {
+
   @Override
-  public BitMatrix encode(String contents,
-                          BarcodeFormat format,
-                          int width,
-                          int height,
-                          Map<EncodeHintType,?> hints) throws WriterException {
-    if (format != BarcodeFormat.CODE_93) {
-      throw new IllegalArgumentException("Can only encode CODE_93, but got " + format);
-    }
-    return super.encode(contents, format, width, height, hints);
+  protected Collection<BarcodeFormat> getSupportedWriteFormats() {
+    return Collections.singleton(BarcodeFormat.CODE_93);
   }
 
   /**
@@ -47,8 +39,8 @@ public class Code93Writer extends OneDimensionalCodeWriter {
     contents = convertToExtended(contents);
     int length = contents.length();
     if (length > 80) {
-      throw new IllegalArgumentException(
-        "Requested contents should be less than 80 digits long after converting to extended encoding, but got " + length);
+      throw new IllegalArgumentException("Requested contents should be less than 80 digits long after " +
+          "converting to extended encoding, but got " + length);
     }
 
     //length of code + 2 start/stop characters + 2 checksums, each of 9 bits, plus a termination bar

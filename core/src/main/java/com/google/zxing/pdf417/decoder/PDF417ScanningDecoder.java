@@ -55,7 +55,8 @@ public final class PDF417ScanningDecoder {
                                      ResultPoint imageTopRight,
                                      ResultPoint imageBottomRight,
                                      int minCodewordWidth,
-                                     int maxCodewordWidth) throws NotFoundException, FormatException, ChecksumException {
+                                     int maxCodewordWidth)
+      throws NotFoundException, FormatException, ChecksumException {
     BoundingBox boundingBox = new BoundingBox(image, imageTopLeft, imageBottomLeft, imageTopRight, imageBottomRight);
     DetectionResultRowIndicatorColumn leftRowIndicatorColumn = null;
     DetectionResultRowIndicatorColumn rightRowIndicatorColumn = null;
@@ -243,7 +244,9 @@ public final class PDF417ScanningDecoder {
         throw NotFoundException.getNotFoundInstance();
       }
       barcodeMatrix01.setValue(calculatedNumberOfCodewords);
-    } else if (numberOfCodewords[0] != calculatedNumberOfCodewords) {
+    } else if (numberOfCodewords[0] != calculatedNumberOfCodewords &&
+        calculatedNumberOfCodewords >= 1 &&
+        calculatedNumberOfCodewords <= PDF417Common.MAX_CODEWORDS_IN_BARCODE) {
       // The calculated one is more reliable as it is derived from the row indicator columns
       barcodeMatrix01.setValue(calculatedNumberOfCodewords);
     }

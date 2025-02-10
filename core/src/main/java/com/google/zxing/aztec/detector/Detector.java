@@ -66,7 +66,7 @@ public final class Detector {
    * @return {@link AztecDetectorResult} encapsulating results of detecting an Aztec Code
    * @throws NotFoundException if no Aztec Code can be found
    */
-   public AztecDetectorResult detect(boolean isMirror) throws NotFoundException {
+  public AztecDetectorResult detect(boolean isMirror) throws NotFoundException {
 
     // 1. Get the center of the aztec matrix
     Point pCenter = getMatrixCenter();
@@ -82,7 +82,7 @@ public final class Detector {
     }
 
     // 3. Get the size of the matrix and other parameters from the bull's eye
-    extractParameters(bullsEyeCorners);
+    int errorsCorrected = extractParameters(bullsEyeCorners);
 
     // 4. Sample the grid
     BitMatrix bits = sampleGrid(image,
@@ -94,16 +94,17 @@ public final class Detector {
     // 5. Get the corners of the matrix.
     ResultPoint[] corners = getMatrixCornerPoints(bullsEyeCorners);
 
-    return new AztecDetectorResult(bits, corners, compact, nbDataBlocks, nbLayers);
+    return new AztecDetectorResult(bits, corners, compact, nbDataBlocks, nbLayers, errorsCorrected);
   }
 
   /**
    * Extracts the number of data layers and data blocks from the layer around the bull's eye.
    *
    * @param bullsEyeCorners the array of bull's eye corners
+   * @return the number of errors corrected during parameter extraction
    * @throws NotFoundException in case of too many errors or invalid parameters
    */
-  private void extractParameters(ResultPoint[] bullsEyeCorners) throws NotFoundException {
+  private int extractParameters(ResultPoint[] bullsEyeCorners) throws NotFoundException {
     if (!isValid(bullsEyeCorners[0]) || !isValid(bullsEyeCorners[1]) ||
         !isValid(bullsEyeCorners[2]) || !isValid(bullsEyeCorners[3])) {
       throw NotFoundException.getNotFoundInstance();
@@ -140,7 +141,8 @@ public final class Detector {
 
     // Corrects parameter data using RS.  Returns just the data portion
     // without the error correction.
-    int correctedData = getCorrectedParameterData(parameterData, compact);
+    CorrectedParameter correctedParam = getCorrectedParameterData(parameterData, compact);
+    int correctedData = correctedParam.getData();
 
     if (compact) {
       // 8 bits:  2 bits layers and 6 bits data blocks
@@ -151,6 +153,8 @@ public final class Detector {
       nbLayers = (correctedData >> 11) + 1;
       nbDataBlocks = (correctedData & 0x7FF) + 1;
     }
+
+    return correctedParam.getErrorsCorrected();
   }
 
   private static int getRotation(int[] sides, int length) throws NotFoundException {
@@ -189,9 +193,11 @@ public final class Detector {
    *
    * @param parameterData parameter bits
    * @param compact true if this is a compact Aztec code
+   * @return the corrected parameter
    * @throws NotFoundException if the array contains too many errors
    */
-  private static int getCorrectedParameterData(long parameterData, boolean compact) throws NotFoundException {
+  private static CorrectedParameter getCorrectedParameterData(long parameterData,
+                                                              boolean compact) throws NotFoundException {
     int numCodewords;
     int numDataCodewords;
 
@@ -209,18 +215,21 @@ public final class Detector {
       parameterWords[i] = (int) parameterData & 0xF;
       parameterData >>= 4;
     }
+
+    int errorsCorrected = 0;
     try {
       ReedSolomonDecoder rsDecoder = new ReedSolomonDecoder(GenericGF.AZTEC_PARAM);
-      rsDecoder.decode(parameterWords, numECCodewords);
+      errorsCorrected = rsDecoder.decodeWithECCount(parameterWords, numECCodewords);
     } catch (ReedSolomonException ignored) {
       throw NotFoundException.getNotFoundInstance();
     }
+
     // Toss the error correction.  Just return the data as an integer
     int result = 0;
     for (int i = 0; i < numDataCodewords; i++) {
       result = (result << 4) + parameterWords[i];
     }
-    return result;
+    return new CorrectedParameter(result, errorsCorrected);
   }
 
   /**
@@ -425,10 +434,12 @@ public final class Detector {
 
     int corr = 3;
 
-    p1 = new Point(p1.getX() - corr, p1.getY() + corr);
-    p2 = new Point(p2.getX() - corr, p2.getY() - corr);
-    p3 = new Point(p3.getX() + corr, p3.getY() - corr);
-    p4 = new Point(p4.getX() + corr, p4.getY() + corr);
+    p1 = new Point(Math.max(0, p1.getX() - corr), Math.min(image.getHeight() - 1, p1.getY() + corr));
+    p2 = new Point(Math.max(0, p2.getX() - corr), Math.max(0, p2.getY() - corr));
+    p3 = new Point(Math.min(image.getWidth() - 1, p3.getX() + corr),
+                   Math.max(0, Math.min(image.getHeight() - 1, p3.getY() - corr)));
+    p4 = new Point(Math.min(image.getWidth() - 1, p4.getX() + corr),
+                   Math.min(image.getHeight() - 1, p4.getY() + corr));
 
     int cInit = getColor(p4, p1);
 
@@ -461,6 +472,9 @@ public final class Detector {
    */
   private int getColor(Point p1, Point p2) {
     float d = distance(p1, p2);
+    if (d == 0.0f) {
+      return 0;
+    }
     float dx = (p2.getX() - p1.getX()) / d;
     float dy = (p2.getY() - p1.getY()) / d;
     int error = 0;
@@ -470,13 +484,13 @@ public final class Detector {
 
     boolean colorModel = image.get(p1.getX(), p1.getY());
 
-    int iMax = (int) Math.ceil(d);
+    int iMax = (int) Math.floor(d);
     for (int i = 0; i < iMax; i++) {
-      px += dx;
-      py += dy;
       if (image.get(MathUtils.round(px), MathUtils.round(py)) != colorModel) {
         error++;
       }
+      px += dx;
+      py += dy;
     }
 
     float errRatio = error / d;
@@ -545,7 +559,7 @@ public final class Detector {
   }
 
   private boolean isValid(int x, int y) {
-    return x >= 0 && x < image.getWidth() && y > 0 && y < image.getHeight();
+    return x >= 0 && x < image.getWidth() && y >= 0 && y < image.getHeight();
   }
 
   private boolean isValid(ResultPoint point) {
@@ -566,10 +580,7 @@ public final class Detector {
     if (compact) {
       return 4 * nbLayers + 11;
     }
-    if (nbLayers <= 4) {
-      return 4 * nbLayers + 15;
-    }
-    return 4 * nbLayers + 2 * ((nbLayers - 4) / 8 + 1) + 15;
+    return 4 * nbLayers + 2 * ((2 * nbLayers + 6) / 15) + 15;
   }
 
   static final class Point {
@@ -577,7 +588,7 @@ public final class Detector {
     private final int y;
 
     ResultPoint toResultPoint() {
-      return new ResultPoint(getX(), getY());
+      return new ResultPoint(x, y);
     }
 
     Point(int x, int y) {
@@ -596,6 +607,24 @@ public final class Detector {
     @Override
     public String toString() {
       return "<" + x + ' ' + y + '>';
+    }
+  }
+
+  static final class CorrectedParameter {
+    private final int data;
+    private final int errorsCorrected;
+
+    CorrectedParameter(int data, int errorsCorrected) {
+      this.data = data;
+      this.errorsCorrected = errorsCorrected;
+    }
+
+    int getData() {
+      return data;
+    }
+
+    int getErrorsCorrected() {
+      return errorsCorrected;
     }
   }
 }

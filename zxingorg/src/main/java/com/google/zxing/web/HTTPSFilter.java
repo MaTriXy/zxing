@@ -16,13 +16,14 @@
 
 package com.google.zxing.web;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.annotation.WebFilter;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.annotation.WebFilter;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 /**
  * Redirects things to HTTPS, like the main decode page, which should prefer HTTPS.
@@ -30,15 +31,18 @@ import java.io.IOException;
 @WebFilter("/w/decode.jspx")
 public final class HTTPSFilter extends AbstractFilter {
 
+  private static final Pattern HTTP_REGEX = Pattern.compile("http://");
+
   @Override
-  public void doFilter(ServletRequest servletRequest, 
-                       ServletResponse servletResponse, 
+  public void doFilter(ServletRequest servletRequest,
+                       ServletResponse servletResponse,
                        FilterChain chain) throws IOException, ServletException {
     if (servletRequest.isSecure()) {
       chain.doFilter(servletRequest, servletResponse);
     } else {
-      HttpServletRequest request = (HttpServletRequest) servletRequest; 
-      String target = request.getRequestURL().toString().replaceFirst("http://", "https://");
+      HttpServletRequest request = (HttpServletRequest) servletRequest;
+      String url = request.getRequestURL().toString();
+      String target = HTTP_REGEX.matcher(url).replaceFirst("https://");
       redirect(servletResponse, target);
     }
   }

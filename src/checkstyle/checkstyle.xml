@@ -59,8 +59,6 @@
 
   <module name="TreeWalker">
 
-    <property name="cacheFile" value="${checkstyle.cache.file}"/>
-
     <!-- required for SuppressWarningsFilter (and other Suppress* rules not used here) -->
     <!-- see http://checkstyle.sourceforge.net/config_annotation.html#SuppressWarningsHolder -->
     <module name="SuppressWarningsHolder"/>
@@ -106,11 +104,6 @@
 
     <!-- Checks for Size Violations.                    -->
     <!-- See http://checkstyle.sf.net/config_sizes.html -->
-    <!--
-    <module name="LineLength">
-      <property name="max" value="120"/>
-    </module>
-     -->
     <!-- <module name="MethodLength"/> -->
     <!-- <module name="ParameterNumber"/> -->
 
@@ -128,7 +121,7 @@
     <module name="WhitespaceAround">
       <property name="allowEmptyConstructors" value="true"/>
     </module>
-    <module name="UnnecessaryParentheses"/>
+    <!-- <module name="UnnecessaryParentheses"/> -->
 
 
     <!-- Modifier Checks                                    -->
@@ -156,7 +149,7 @@
     <module name="EqualsHashCode"/>
     <!--<module name="HiddenField"/>-->
     <module name="IllegalInstantiation"/>
-    <module name="IllegalType"/>
+    <!-- <module name="IllegalType"/> -->
     <!-- <module name="InnerAssignment"/> -->
     <!-- <module name="MagicNumber"/> -->
     <!-- <module name="MissingSwitchDefault"/> -->
@@ -187,6 +180,13 @@
     <!-- <module name="TodoComment"/> -->
     <module name="UpperEll"/>
 
+    <module name="Indentation">
+      <property name="basicOffset" value="2" />
+      <property name="braceAdjustment" value="0" />
+      <property name="caseIndent" value="2" />
+      <property name="arrayInitIndent" value="2"/>
+    </module>
+
   </module>
 
   <!-- Support @SuppressWarnings (added in Checkstyle 5.7) -->
@@ -196,5 +196,9 @@
   <!-- Checks properties file for a duplicated properties. -->
   <!-- See http://checkstyle.sourceforge.net/config_misc.html#UniqueProperties -->
   <module name="UniqueProperties"/>
+
+  <module name="LineLength">
+    <property name="max" value="120"/>
+  </module>
 
 </module>

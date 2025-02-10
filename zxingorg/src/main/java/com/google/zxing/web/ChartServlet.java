@@ -27,11 +27,11 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 
-import javax.servlet.ServletRequest;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -99,6 +99,10 @@ public final class ChartServlet extends HttpServlet {
     }
 
     String requestURI = request.getRequestURI();
+    if (requestURI == null) {
+      response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+      return;
+    }
     int lastDot = requestURI.lastIndexOf('.');
     String imageFormat;
     if (lastDot > 0) {
@@ -110,7 +114,7 @@ public final class ChartServlet extends HttpServlet {
     } else {
       imageFormat = "PNG";
     }
-    
+
     String contentType;
     switch (imageFormat) {
       case "PNG":
@@ -125,7 +129,7 @@ public final class ChartServlet extends HttpServlet {
       default:
         throw new IllegalArgumentException("Unknown format " + imageFormat);
     }
-    
+
     ByteArrayOutputStream imageOut = new ByteArrayOutputStream(1024);
     MatrixToImageWriter.writeToStream(matrix, imageFormat, imageOut);
     byte[] imageData = imageOut.toByteArray();
@@ -139,7 +143,8 @@ public final class ChartServlet extends HttpServlet {
   private static ChartServletRequestParameters doParseParameters(ServletRequest request, boolean readBody)
       throws IOException {
 
-    Preconditions.checkArgument("qr".equals(request.getParameter("cht")), "Bad type");
+    String chartType = request.getParameter("cht");
+    Preconditions.checkArgument(chartType == null || "qr".equals(chartType), "Bad type");
 
     String widthXHeight = request.getParameter("chs");
     Preconditions.checkNotNull(widthXHeight, "No size");
@@ -152,8 +157,10 @@ public final class ChartServlet extends HttpServlet {
     Preconditions.checkArgument(width <= MAX_DIMENSION && height <= MAX_DIMENSION, "Bad size");
 
     String outputEncodingName = request.getParameter("choe");
-    Charset outputEncoding = StandardCharsets.UTF_8;
-    if (outputEncodingName != null) {
+    Charset outputEncoding;
+    if (outputEncodingName == null) {
+      outputEncoding = StandardCharsets.UTF_8;
+    } else {
       outputEncoding = Charset.forName(outputEncodingName);
       Preconditions.checkArgument(SUPPORTED_OUTPUT_ENCODINGS.contains(outputEncoding), "Bad output encoding");
     }

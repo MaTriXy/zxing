@@ -62,6 +62,7 @@ public abstract class AbstractBlackBoxTestCase extends Assert {
   private final Reader barcodeReader;
   private final BarcodeFormat expectedFormat;
   private final List<TestResult> testResults;
+  private final EnumMap<DecodeHintType,Object> hints = new EnumMap<>(DecodeHintType.class);
 
   public static Path buildTestBase(String testBasePathSuffix) {
     // A little workaround to prevent aggravation in my IDE
@@ -90,6 +91,10 @@ public abstract class AbstractBlackBoxTestCase extends Assert {
 
   protected final void addTest(int mustPassCount, int tryHarderCount, float rotation) {
     addTest(mustPassCount, tryHarderCount, 0, 0, rotation);
+  }
+
+  protected void addHint(DecodeHintType hint) {
+    hints.put(hint, Boolean.TRUE);
   }
 
   /**
@@ -125,14 +130,8 @@ public abstract class AbstractBlackBoxTestCase extends Assert {
     return barcodeReader;
   }
 
-  // This workaround is used because AbstractNegativeBlackBoxTestCase overrides this method but does
-  // not return SummaryResults.
   @Test
   public void testBlackBox() throws IOException {
-    testBlackBoxCountingResults(true);
-  }
-
-  private void testBlackBoxCountingResults(boolean assertOnFailure) throws IOException {
     assertFalse(testResults.isEmpty());
 
     List<Path> imageFiles = getImageFiles();
@@ -166,6 +165,8 @@ public abstract class AbstractBlackBoxTestCase extends Assert {
         try (BufferedReader reader = Files.newBufferedReader(expectedMetadataFile, StandardCharsets.UTF_8)) {
           expectedMetadata.load(reader);
         }
+        correctInteger(expectedMetadata, ResultMetadataType.ERRORS_CORRECTED);
+        correctInteger(expectedMetadata, ResultMetadataType.ERASURES_CORRECTED);
       }
 
       for (int x = 0; x < testCount; x++) {
@@ -235,20 +236,27 @@ public abstract class AbstractBlackBoxTestCase extends Assert {
     }
 
     // Then run through again and assert if any failed
-    if (assertOnFailure) {
-      for (int x = 0; x < testCount; x++) {
-        TestResult testResult = testResults.get(x);
-        String label = "Rotation " + testResult.getRotation() + " degrees: Too many images failed";
-        assertTrue(label,
-                   passedCounts[x] >= testResult.getMustPassCount());
-        assertTrue("Try harder, " + label,
-                   tryHarderCounts[x] >= testResult.getTryHarderCount());
-        label = "Rotation " + testResult.getRotation() + " degrees: Too many images misread";
-        assertTrue(label,
-                   misreadCounts[x] <= testResult.getMaxMisreads());
-        assertTrue("Try harder, " + label,
-                   tryHarderMisreadCounts[x] <= testResult.getMaxTryHarderMisreads());
-      }
+    for (int x = 0; x < testCount; x++) {
+      TestResult testResult = testResults.get(x);
+      String label = "Rotation " + testResult.getRotation() + " degrees: Too many images failed";
+      assertTrue(label,
+                 passedCounts[x] >= testResult.getMustPassCount());
+      assertTrue("Try harder, " + label,
+                 tryHarderCounts[x] >= testResult.getTryHarderCount());
+      label = "Rotation " + testResult.getRotation() + " degrees: Too many images misread";
+      assertTrue(label,
+                 misreadCounts[x] <= testResult.getMaxMisreads());
+      assertTrue("Try harder, " + label,
+                 tryHarderMisreadCounts[x] <= testResult.getMaxTryHarderMisreads());
+    }
+  }
+
+  private static void correctInteger(Properties metadata, ResultMetadataType key) {
+    String skey = key.toString();
+    if (metadata.containsKey(skey)) {
+      String sval = metadata.getProperty(skey);
+      Integer ival = Integer.parseInt(sval);
+      metadata.put(skey, ival);
     }
   }
 
@@ -260,7 +268,7 @@ public abstract class AbstractBlackBoxTestCase extends Assert {
 
     String suffix = String.format(" (%srotation: %d)", tryHarder ? "try harder, " : "", (int) rotation);
 
-    Map<DecodeHintType,Object> hints = new EnumMap<>(DecodeHintType.class);
+    Map<DecodeHintType,Object> hints = this.hints.clone();
     if (tryHarder) {
       hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
     }
